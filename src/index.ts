@@ -7,35 +7,49 @@ const MODEL_BY_ROLE: Record<UserRole, string> = {
 	client: "@cf/meta/llama-3.1-8b-instruct-fp8",
 };
 
-// Each role is mapped to exactly one allowed table. Because the table name is
+// Each role is mapped to the tables it may read. Because the table names are
 // looked up from this fixed record (never from user input), it is safe to
-// interpolate into the SQL string.
-const TABLE_BY_ROLE: Record<UserRole, string> = {
-	employee: "package_commercials",
-	client: "packages",
+// interpolate them into the SQL string.
+const TABLES_BY_ROLE: Record<UserRole, readonly string[]> = {
+	employee: ["packages", "package_commercials"],
+	client: ["packages"],
 };
 
-async function loadTableRows(
+async function loadTablesForRole(
 	db: D1Database,
-	table: string,
-): Promise<unknown[]> {
-	const { results } = await db
-		.prepare(`SELECT * FROM ${table} LIMIT 100`)
-		.all();
-	return results ?? [];
+	tables: readonly string[],
+): Promise<Record<string, unknown[]>> {
+	const entries = await Promise.all(
+		tables.map(async (table) => {
+			const { results } = await db
+				.prepare(`SELECT * FROM ${table} LIMIT 100`)
+				.all();
+			return [table, results ?? []] as const;
+		}),
+	);
+	return Object.fromEntries(entries);
 }
 
 function isUserRole(value: unknown): value is UserRole {
 	return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
-function buildSystemPrompt(role: UserRole, table: string, rows: unknown[]): string {
-	return [
+function buildSystemPrompt(
+	role: UserRole,
+	tables: Record<string, unknown[]>,
+): string {
+	const tableNames = Object.keys(tables);
+	const lines: string[] = [
 		`You are a helpful assistant talking to a user with the "${role}" role.`,
-		`You have read access to the "${table}" table only. Do not invent rows or reference other tables.`,
-		`Table contents (JSON):`,
-		JSON.stringify(rows),
-	].join("\n");
+		`You have read access to the following tables only: ${tableNames
+			.map((n) => `"${n}"`)
+			.join(", ")}. Do not invent rows or reference other tables.`,
+	];
+	for (const [name, rows] of Object.entries(tables)) {
+		lines.push(`Table "${name}" contents (JSON):`);
+		lines.push(JSON.stringify(rows));
+	}
+	return lines.join("\n");
 }
 
 export default {
@@ -104,12 +118,11 @@ async function handleChatRequest(
 		};
 		const incomingMessages = body.messages ?? [];
 		const userRole: UserRole = isUserRole(body.role) ? body.role : "client";
-		const tableName = TABLE_BY_ROLE[userRole];
-		const rows = await loadTableRows(env.DB, tableName);
+		const tables = await loadTablesForRole(env.DB, TABLES_BY_ROLE[userRole]);
 
 		// Drop any client-supplied system messages and inject our role-scoped one.
 		const messages: ChatMessage[] = [
-			{ role: "system", content: buildSystemPrompt(userRole, tableName, rows) },
+			{ role: "system", content: buildSystemPrompt(userRole, tables) },
 			...incomingMessages.filter((m) => m.role !== "system"),
 		];
 
