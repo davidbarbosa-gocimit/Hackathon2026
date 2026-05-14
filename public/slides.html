@@ -538,77 +538,44 @@
 						</svg>
 					</div>
 					<h1>AITinerary</h1>
-					<p class="subtitle">An AI travel concierge built on Cloudflare</p>
+					<p class="subtitle">A role-aware AI travel concierge, fully on Cloudflare</p>
 					<div class="meta">
 						<span>Hackathon 2026</span>
 						<span>Workers · Workers AI · AI Gateway · D1 · Access</span>
 					</div>
 				</section>
 
-				<!-- 2. The problem -->
+				<!-- 2. What we built -->
 				<section class="slide">
-					<span class="eyebrow">The problem</span>
+					<span class="eyebrow">What we built</span>
 					<h2 class="slide-title">
-						One travel catalog, two very different audiences
+						One chat UI, two audiences, zero risk of leaks
 					</h2>
 					<p class="lead">
-						A travel agency sells the same premium packages to both clients and
-						its own salespeople — but each needs to see different information,
-						with different reliability and access guarantees.
-					</p>
-					<ul class="bullets">
-						<li>
-							<span>
-								<b>Clients</b> want destinations, prices, included services,
-								and a friendly recommendation.
-							</span>
-						</li>
-						<li>
-							<span>
-								<b>Sales agents</b> need internal margins, sales arguments,
-								and commercial priority to close the deal.
-							</span>
-						</li>
-						<li>
-							<span>
-								The same chat UI, but the assistant must <b>never leak
-								internal data</b> to a client — even if asked.
-							</span>
-						</li>
-					</ul>
-				</section>
-
-				<!-- 3. The solution -->
-				<section class="slide">
-					<span class="eyebrow amber">The solution</span>
-					<h2 class="slide-title">
-						Role-aware AI concierge, fully on Cloudflare
-					</h2>
-					<p class="lead">
-						A single Worker serves two chat surfaces. The role is decided
-						server-side and propagates through model selection, data access,
-						and prompt engineering — so leaks are impossible by design.
+						The same travel agency sells premium packages to <b>clients</b> and
+						gives sales tools to its own <b>employees</b>. We built a single
+						Worker that serves both — the role is decided server-side and
+						propagates through model, data, and prompt.
 					</p>
 					<div class="grid-2">
 						<div class="card">
-							<h3>Public client chat</h3>
+							<h3>Public client chat &nbsp;<code>/</code></h3>
 							<p>
-								Open at <b>/</b>. Reads only the <code>packages</code> table.
-								Smaller, faster model. Friendly travel-advisor tone.
+								No login. Reads only the <code>packages</code> table. Friendly
+								travel-advisor tone, recommends destinations and prices.
 							</p>
 						</div>
 						<div class="card">
-							<h3>Employee chat</h3>
+							<h3>Employee chat &nbsp;<code>/employee</code></h3>
 							<p>
-								At <b>/employee</b>. Cloudflare Access-protected. Reads both
-								tables. Larger model. Surfaces margin, priority, sales
-								arguments.
+								Behind Cloudflare Access. Also reads <code>package_commercials</code>
+								— margins, priority, sales arguments. Larger model.
 							</p>
 						</div>
 					</div>
 				</section>
 
-				<!-- 4. Architecture -->
+				<!-- 3. Architecture -->
 				<section class="slide">
 					<span class="eyebrow">Architecture</span>
 					<h2 class="slide-title">Everything runs at the edge</h2>
@@ -616,20 +583,33 @@
 						<div class="arch-row">
 							<div class="arch-box">
 								<span class="label">Frontend</span>
-								<span class="name">Static HTML + JS</span>
-								<span class="detail">/ and /employee</span>
+								<span class="name">Browser</span>
+								<span class="detail">HTML + JS from ASSETS binding</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box amber">
+								<span class="label">Auth gate</span>
+								<span class="name">Cloudflare Access</span>
+								<span class="detail">JWT (only /employee)</span>
 							</div>
 							<span class="arch-arrow">→</span>
 							<div class="arch-box primary">
 								<span class="label">Compute</span>
-								<span class="name">Cloudflare Workers</span>
-								<span class="detail">TypeScript, edge-deployed</span>
+								<span class="name">Cloudflare Worker</span>
+								<span class="detail">role-aware routing</span>
+							</div>
+						</div>
+						<div class="arch-row">
+							<div class="arch-box">
+								<span class="label">Data</span>
+								<span class="name">D1 (SQLite)</span>
+								<span class="detail">packages · package_commercials</span>
 							</div>
 							<span class="arch-arrow">→</span>
 							<div class="arch-box amber">
 								<span class="label">Observability</span>
 								<span class="name">AI Gateway</span>
-								<span class="detail">caching · metadata · logs</span>
+								<span class="detail">caching · logs · metadata</span>
 							</div>
 							<span class="arch-arrow">→</span>
 							<div class="arch-box primary">
@@ -638,264 +618,84 @@
 								<span class="detail">Llama 3.1 8B / 3.3 70B</span>
 							</div>
 						</div>
-						<div class="arch-row">
-							<div class="arch-box">
-								<span class="label">Auth gate</span>
-								<span class="name">Cloudflare Access</span>
-								<span class="detail">JWT for /employee</span>
-							</div>
-							<span class="arch-arrow">→</span>
-							<div class="arch-box primary">
-								<span class="label">Identity</span>
-								<span class="name">jose verifier</span>
-								<span class="detail">team domain + aud</span>
-							</div>
-							<span class="arch-arrow">→</span>
-							<div class="arch-box">
-								<span class="label">Data</span>
-								<span class="name">D1 (SQLite)</span>
-								<span class="detail">packages, package_commercials, users</span>
-							</div>
-						</div>
 					</div>
+					<p class="lead">
+						One Worker. One deploy. No servers, no containers, no third-party APIs.
+					</p>
 				</section>
 
-				<!-- 5. Workers -->
+				<!-- 4. Cloudflare stack -->
 				<section class="slide">
-					<span class="eyebrow">Compute</span>
-					<h2 class="slide-title">
-						Cloudflare Workers — one file, six endpoints
-					</h2>
-					<p class="lead">
-						No servers, no containers, no cold-start juggling. The entire
-						backend is a single TypeScript Worker deployed to the edge.
-					</p>
+					<span class="eyebrow amber">The Cloudflare stack</span>
+					<h2 class="slide-title">Six services, one platform</h2>
 					<div class="grid-3">
 						<div class="service-card">
-							<span class="pill">/api/chat</span>
-							<h3>Public chat</h3>
-							<p>Hardcoded to the <code>client</code> role. Open to anyone.</p>
+							<span class="pill">Compute</span>
+							<h3>Workers</h3>
+							<p>TypeScript at the edge. Routes requests, picks the role, builds the prompt.</p>
 						</div>
 						<div class="service-card">
-							<span class="pill">/api/chat-internal</span>
-							<h3>Employee chat</h3>
-							<p>
-								Verifies the Cloudflare Access JWT before answering. Role:
-								<code>employee</code>.
-							</p>
+							<span class="pill">Inference</span>
+							<h3>Workers AI</h3>
+							<p>LLM calls via <code>env.AI.run()</code>. No API keys, no extra infra.</p>
 						</div>
 						<div class="service-card">
-							<span class="pill">/api/me</span>
-							<h3>Identity</h3>
-							<p>Returns the signed-in email + resolved role.</p>
+							<span class="pill">Observability</span>
+							<h3>AI Gateway</h3>
+							<p>Proxies every model call. Free logs, caching, and role-tagged metadata.</p>
 						</div>
 						<div class="service-card">
-							<span class="pill">/api/health/db</span>
-							<h3>D1 health</h3>
-							<p>Row counts per table. Sanity check for the data layer.</p>
+							<span class="pill">Data</span>
+							<h3>D1</h3>
+							<p>SQLite at the edge. Role-scoped table allowlist — clients literally never load commercial rows.</p>
 						</div>
 						<div class="service-card">
-							<span class="pill">/</span>
-							<h3>Static assets</h3>
-							<p>
-								Served via the <code>ASSETS</code> binding. Same Worker, no
-								separate hosting.
-							</p>
+							<span class="pill">Zero Trust</span>
+							<h3>Access</h3>
+							<p>Auth only in front of <code>/employee</code>. JWT verified in the Worker with <code>jose</code>.</p>
 						</div>
 						<div class="service-card">
-							<span class="pill">/employee</span>
-							<h3>Employee UI</h3>
-							<p>
-								Protected by Access at the edge. Worker is never even hit
-								unauthenticated.
-							</p>
+							<span class="pill">Hosting</span>
+							<h3>Static Assets</h3>
+							<p>HTML + JS served from the <code>ASSETS</code> binding. Same Worker, no separate frontend host.</p>
 						</div>
 					</div>
 				</section>
 
-				<!-- 6. Workers AI -->
+				<!-- 5. Workers AI models -->
 				<section class="slide">
 					<span class="eyebrow">Inference</span>
 					<h2 class="slide-title">
-						Workers AI — different model for different stakes
+						Workers AI — a different model for each role
 					</h2>
 					<p class="lead">
-						Each role gets the model whose strengths fit the task. No
-						third-party API keys, no extra infra — just the
-						<code>env.AI</code> binding.
+						The Worker picks the model server-side based on the verified role. Both
+						are Meta Llama variants, served by Cloudflare — no third-party APIs.
 					</p>
 					<div class="grid-2">
 						<div class="card">
-							<h3>@cf/meta/llama-3.1-8b-instruct-fp8</h3>
+							<h3>Client &nbsp;·&nbsp; Llama 3.1 8B</h3>
 							<p>
-								<b>Client.</b> Fast, lightweight. Handles travel
-								recommendations and customer questions in real time.
+								<code>@cf/meta/llama-3.1-8b-instruct-fp8</code><br />
+								Small, fast, cheap. Plenty for friendly travel recommendations.
 							</p>
 						</div>
 						<div class="card">
-							<h3>@cf/meta/llama-3.3-70b-instruct-fp8-fast</h3>
+							<h3>Employee &nbsp;·&nbsp; Llama 3.3 70B</h3>
 							<p>
-								<b>Employee.</b> Stronger reasoning, better at following
-								strict format rules — needed for accurate commercial figures.
+								<code>@cf/meta/llama-3.3-70b-instruct-fp8-fast</code><br />
+								Stronger reasoning and format adherence — needed for accurate
+								margins, priorities, and sales tactics.
 							</p>
 						</div>
 					</div>
 					<pre class="code-block"><span class="k">await</span> env.AI.run(modelId, { messages, stream: <span class="v">true</span> }, {
-  <span class="c">// goes through AI Gateway if AI_GATEWAY_ID is set</span>
+  <span class="c">// every call is proxied through AI Gateway for logs + caching</span>
   gateway: { id: env.AI_GATEWAY_ID, metadata: { role } },
 });</pre>
 				</section>
 
-				<!-- 7. AI Gateway -->
-				<section class="slide">
-					<span class="eyebrow amber">Observability</span>
-					<h2 class="slide-title">AI Gateway — visibility for free</h2>
-					<p class="lead">
-						Every model call is proxied through our gateway slug
-						<code>adventure-premium</code>. We didn't write a single line of
-						logging code.
-					</p>
-					<div class="grid-3">
-						<div class="service-card">
-							<span class="pill">Logs</span>
-							<h3>Real-time tracing</h3>
-							<p>
-								Every prompt, response, model, and latency in the dashboard.
-							</p>
-						</div>
-						<div class="service-card">
-							<span class="pill">Cache</span>
-							<h3>Repeated questions</h3>
-							<p>
-								<code>cacheTtl: 3600</code> — repeated client FAQs return in
-								milliseconds with zero tokens billed.
-							</p>
-						</div>
-						<div class="service-card">
-							<span class="pill">Metadata</span>
-							<h3>Role tagging</h3>
-							<p>
-								<code>metadata: { role }</code> lets us split employee vs
-								client traffic in the dashboard.
-							</p>
-						</div>
-					</div>
-					<p class="lead">
-						<b>Future levers</b> available without code changes: rate limits
-						per role, provider fallbacks, content guardrails.
-					</p>
-				</section>
-
-				<!-- 8. D1 -->
-				<section class="slide">
-					<span class="eyebrow">Data</span>
-					<h2 class="slide-title">D1 — SQLite at the edge</h2>
-					<p class="lead">
-						Three tables, two of which the assistant can read, but never both
-						for the same user. The access filter is the strongest guarantee in
-						the system.
-					</p>
-					<pre class="code-block"><span class="c">// src/index.ts — fixed map, never derived from user input</span>
-<span class="k">const</span> TABLES_BY_ROLE = {
-  employee: [<span class="s">"packages"</span>, <span class="s">"package_commercials"</span>],
-  client:   [<span class="s">"packages"</span>],
-};
-
-<span class="c">// inactive packages filtered at the SQL layer</span>
-<span class="k">const</span> TABLE_QUERIES = {
-  packages:            <span class="s">"SELECT * FROM packages WHERE active = 1 LIMIT 100"</span>,
-  package_commercials: <span class="s">"SELECT * FROM package_commercials LIMIT 100"</span>,
-};</pre>
-					<p class="lead">
-						A client request <b>literally never loads</b> commercial rows. Even
-						if the model wanted to leak, it has nothing in context to leak.
-					</p>
-				</section>
-
-				<!-- 9. Access -->
-				<section class="slide">
-					<span class="eyebrow amber">Zero Trust</span>
-					<h2 class="slide-title">
-						Cloudflare Access — auth only where it matters
-					</h2>
-					<p class="lead">
-						The customer-facing chat is wide open. <b>Cloudflare Access
-						(Zero Trust)</b> sits only in front of the employee chat — asking
-						for an email-based login before any request reaches our Worker.
-					</p>
-					<div class="grid-2">
-						<div class="card">
-							<h3>Client at /</h3>
-							<p>
-								<b>No login.</b> Open the URL, start chatting. Sees only the
-								public <code>packages</code> table.
-							</p>
-						</div>
-						<div class="card">
-							<h3>Employee at /employee</h3>
-							<p>
-								<b>Email login via Zero Trust.</b> Cloudflare brokers the
-								identity flow at the edge — the Worker is never even reached
-								by an unauthenticated request.
-							</p>
-						</div>
-					</div>
-					<ul class="bullets">
-						<li>
-							<span>
-								<b>No password storage on our side.</b> Cloudflare runs the
-								whole login UI and SSO handshake.
-							</span>
-						</li>
-						<li>
-							<span>
-								<b>JWT verified at the edge</b> via the <code>jose</code>
-								library against our team domain + AUD tag — defense in depth.
-							</span>
-						</li>
-						<li>
-							<span>
-								Authenticated email lands at <code>/api/me</code> and shows
-								in the employee chat header.
-							</span>
-						</li>
-					</ul>
-				</section>
-
-				<!-- 10. Prompt engineering -->
-				<section class="slide">
-					<span class="eyebrow">Soft layer</span>
-					<h2 class="slide-title">Prompt engineering — the behavioural guardrail</h2>
-					<p class="lead">
-						Data filtering blocks leaks of what's not in context. Prompt rules
-						handle the rest: tone, refusal patterns, answer shape, number
-						formatting.
-					</p>
-					<div class="grid-2">
-						<div class="card">
-							<h3>Common rules (both roles)</h3>
-							<p>
-								Never invent rows · refuse role-change attempts · hide DB
-								IDs · always quote prices as "from €X" with thousands
-								separators.
-							</p>
-						</div>
-						<div class="card">
-							<h3>Role-specific rules</h3>
-							<p>
-								Employee answer shape: name → price → duration → margin.
-								Client answer shape: name → destination → price → highlights
-								→ why it fits.
-							</p>
-						</div>
-					</div>
-					<p class="lead">
-						Plus a <b>field guide</b> injected into every prompt so the model
-						knows what each column actually means.
-					</p>
-				</section>
-
-				<!-- 11. Live demo -->
+				<!-- 6. Live demo -->
 				<section class="slide final">
 					<span class="eyebrow">Try it now</span>
 					<h2 class="slide-title">Live demo</h2>
@@ -915,28 +715,6 @@
 					</p>
 				</section>
 
-				<!-- 12. Thanks -->
-				<section class="slide title final">
-					<div class="brand-logo-big" aria-hidden="true">
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.8"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<circle cx="17" cy="6" r="1.7" fill="currentColor" stroke="none" />
-							<path d="M2 20 L8 11 L12 16 L16 9 L22 20 Z" />
-							<line x1="2" y1="20" x2="22" y2="20" />
-						</svg>
-					</div>
-					<h1>Thank you</h1>
-					<p class="subtitle">Questions?</p>
-					<div class="meta">
-						<span>github.com/davidbarbosa-gocimit/Hackathon2026</span>
-					</div>
-				</section>
 			</div>
 
 			<div class="nav">
@@ -945,7 +723,7 @@
 						<polyline points="15 18 9 12 15 6"></polyline>
 					</svg>
 				</button>
-				<span class="counter" id="counter">1 / 12</span>
+				<span class="counter" id="counter">1 / 6</span>
 				<button id="next" aria-label="Next slide">
 					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 						<polyline points="9 18 15 12 9 6"></polyline>
