@@ -4,11 +4,21 @@
  * Handles the chat UI interactions and communication with the backend API.
  */
 
+// Redirect to role selection if no role is set yet
+const role = localStorage.getItem("role");
+if (!role) {
+	window.location.replace("/");
+}
+
 // DOM elements
 const chatMessages = document.getElementById("chat-messages");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 const typingIndicator = document.getElementById("typing-indicator");
+const roleLabel = document.getElementById("role-label");
+if (roleLabel && role) {
+	roleLabel.textContent = role;
+}
 
 // Chat state
 let chatHistory = [
