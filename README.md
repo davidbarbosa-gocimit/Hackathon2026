@@ -22,17 +22,39 @@ gastronomía, mejor época para visitar, FAQs). El sistema:
 - Nunca expone SQL libre: el LLM solo puede invocar funciones predefinidas.
 - Tiene presupuesto de tokens diario por usuario y global.
 
-## Stack propuesto
+## Stack
 
-- **Cloudflare Workers** (runtime edge).
-- **Cloudflare Agents SDK** (`agents` npm package) para orquestar el agente con tools.
-- **Workers AI** (Llama 3.x) como LLM principal — gratis dentro de cuota.
-- **D1** (SQLite gestionado) como DB mock de destinos, atracciones, etc.
-- **KV** para caché de respuestas y listas de bloqueo.
-- **Durable Objects** para budgets de tokens por usuario.
-- **Turnstile** (anti-bot, invisible).
-- **AI Gateway** para caché semántico, budgets globales, métricas y logs.
-- **TypeScript** + **Wrangler** para dev/deploy.
+Mínimo pero profesional. Todo Cloudflare más Hono como framework HTTP.
+
+### Núcleo
+- **Cloudflare Workers** + **TypeScript** — runtime edge.
+- **[Hono](https://hono.dev/)** — framework HTTP ligero, estándar de facto en Workers.
+- **Wrangler** — dev local con bindings reales y deploy.
+
+### LLM
+- **Workers AI** — dos modelos vía la misma API:
+  - `@cf/meta/llama-3.3-70b-instruct-fp8-fast` como LLM principal (tool calling).
+  - `@cf/meta/llama-3.1-8b-instruct` como clasificador de scope (barato y rápido).
+- **AI Gateway** — proxy delante de Workers AI: caché semántico, budget global,
+  métricas y logs (todo desde dashboard, sin código extra).
+
+### Datos
+- **D1** (SQLite serverless) — catálogo de destinos, atracciones, FAQs.
+
+### Guardrails / anti-abuso
+- **Turnstile** (invisible) — anti-bot en el cliente.
+- **Rate Limiting binding** (nativo de Workers) — límite por IP a nivel Worker,
+  sin estado custom.
+- Budget global → AI Gateway (no necesitamos contador per-user para el MVP).
+
+### Frontend
+- **Workers Static Assets** — sirve la UI desde el mismo Worker, 1 deploy.
+- **HTML + Alpine.js** (o vanilla JS) — demo de 1 página, sin build de SPA.
+
+> Decisiones explícitamente descartadas para mantenerlo simple:
+> Cloudflare Agents SDK (overkill para chat de un turno), KV (AI Gateway ya
+> hace el caché) y Durable Objects (Rate Limiting binding + budget global de
+> AI Gateway cubren el MVP).
 
 ## Arquitectura de guardrails (capas)
 
@@ -41,14 +63,14 @@ gastronomía, mejor época para visitar, FAQs). El sistema:
    ↓
 [1] Turnstile (anti-bot, gratis)
    ↓
-[2] Worker: rate limit por IP + validaciones cheap (longitud, regex anti-injection)
+[2] Worker (Hono): Rate Limiting binding por IP + validaciones cheap (longitud, regex anti-injection)
    ↓
-[3] Clasificador de scope (modelo barato Workers AI)
+[3] Clasificador de scope (Llama 3.1 8B vía Workers AI)
        → si off-topic: respuesta canned, fin.
    ↓
 [4] AI Gateway (caché semántico + budget global)
    ↓
-[5] Agent + Workers AI (LLM principal) con tool calling restringido a D1
+[5] Workers AI (Llama 3.3 70B) con tool calling restringido a D1
    ↓
 [6] Validador de salida (no fuga de system prompt, no off-topic)
    ↓
@@ -57,8 +79,8 @@ gastronomía, mejor época para visitar, FAQs). El sistema:
 
 | Amenaza                          | Defensa                                              |
 | -------------------------------- | ---------------------------------------------------- |
-| Bot spammeando endpoint          | Turnstile + rate limit por IP                        |
-| Usuario haciendo loop infinito   | Token budget diario por usuario (Durable Object)     |
+| Bot spammeando endpoint          | Turnstile + Rate Limiting binding por IP             |
+| Usuario abusando del endpoint    | Rate Limiting binding (corta tras N req/min por IP)  |
 | Preguntas off-topic largas       | Clasificador barato antes del LLM caro               |
 | Prompt injection                 | Tool calling restringido + system prompt + validador |
 | Misma pregunta repetida          | Caché semántico de AI Gateway                        |
@@ -107,14 +129,13 @@ system prompt, el clasificador de scope y el validador de salida.
 ```
 Hackathon2026/
 ├── README.md
-├── wrangler.toml              # config Cloudflare
+├── wrangler.toml              # config Cloudflare (bindings: AI, D1, Turnstile, RL, ASSETS)
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── index.ts               # Worker entry
-│   ├── agent.ts               # Agent (Agents SDK)
+│   ├── index.ts               # Worker entry (rutas Hono)
+│   ├── chat.ts                # orquestación: scope → tools → LLM → validador
 │   ├── guardrails/
-│   │   ├── rate-limit.ts
 │   │   ├── scope-classifier.ts
 │   │   ├── prompt-injection.ts
 │   │   └── output-validator.ts
@@ -124,7 +145,7 @@ Hackathon2026/
 │       ├── schema.sql
 │       └── seed.sql
 └── public/
-    └── index.html             # cliente demo mínimo
+    └── index.html             # cliente demo mínimo (servido por Static Assets)
 ```
 
 ## Cómo arrancar (cuando exista el código)
@@ -157,14 +178,14 @@ Repositorio: `davidbarbosa-gocimit/Hackathon2026`
 
 | Área                              | Responsable   | Notas                                                          |
 | --------------------------------- | ------------- | -------------------------------------------------------------- |
-| Worker base + Agents SDK          | _por definir_ | scaffold inicial, rutas, config Wrangler                       |
+| Worker base (Hono) + Wrangler     | _por definir_ | scaffold inicial, rutas, bindings, config Wrangler             |
 | D1: schema + seed turismo         | _por definir_ | tablas: destinations, attractions, categories, faqs            |
-| Tools del agente (tool calling)   | _por definir_ | funciones expuestas al LLM sobre D1 (`get_destination`, etc.)  |
-| Guardrails: rate limit + budget   | _por definir_ | Durable Object con contador por usuario                        |
-| Guardrails: clasificador de scope | _por definir_ | prompt + modelo pequeño Workers AI (dominio turismo)           |
+| Tools del LLM (tool calling)      | _por definir_ | funciones expuestas al LLM sobre D1 (`get_destination`, etc.)  |
+| Guardrails: rate limit            | _por definir_ | Rate Limiting binding + respuesta canned al exceder            |
+| Guardrails: clasificador de scope | _por definir_ | prompt + Llama 3.1 8B vía Workers AI (dominio turismo)         |
 | Guardrails: anti prompt-injection | _por definir_ | heurísticas + validador de salida                              |
-| AI Gateway + caché                | _por definir_ | config en dashboard Cloudflare + integración                   |
-| Cliente demo (frontend mínimo)    | _por definir_ | HTML/JS plano servido por el Worker                            |
+| AI Gateway (caché + budget + logs)| _por definir_ | config en dashboard Cloudflare + integración                   |
+| Cliente demo (frontend mínimo)    | _por definir_ | HTML/Alpine servido por Workers Static Assets                  |
 | Demo & pitch                      | _por definir_ | escenarios para enseñar guardrails en acción                   |
 
 ### Convenciones
@@ -176,10 +197,10 @@ Repositorio: `davidbarbosa-gocimit/Hackathon2026`
 
 ## Roadmap mínimo (MVP)
 
-1. Scaffold Worker + Hono o Agents SDK + Wrangler.
+1. Scaffold Worker + Hono + Wrangler.
 2. D1 con datos mock de destinos y lugares de interés.
-3. Endpoint `POST /chat` con LLM y tool calling restringido.
-4. Rate limit básico + clasificador de scope (dominio turismo).
-5. Cliente demo (1 página) consumiendo el endpoint.
-6. Budget por usuario y AI Gateway.
+3. Endpoint `POST /chat` con Workers AI y tool calling restringido.
+4. Rate Limiting binding + clasificador de scope (dominio turismo).
+5. Cliente demo (1 página) servido vía Workers Static Assets.
+6. AI Gateway: caché semántico + budget global + logs.
 7. Pulido + pitch.
