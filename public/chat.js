@@ -2,22 +2,30 @@
  * LLM Chat App Frontend
  *
  * Handles the chat UI interactions and communication with the backend API.
+ * The user role is resolved server-side from the Cloudflare Access JWT; the
+ * frontend just renders it once the first response comes back.
  */
 
-// Redirect to role selection if no role is set yet
-const role = localStorage.getItem("role");
-if (!role) {
-	window.location.replace("/");
-}
-
-// DOM elements
 const chatMessages = document.getElementById("chat-messages");
 const userInput = document.getElementById("user-input");
 const sendButton = document.getElementById("send-button");
 const typingIndicator = document.getElementById("typing-indicator");
 const roleLabel = document.getElementById("role-label");
-if (roleLabel && role) {
-	roleLabel.textContent = role;
+
+// Only fetch identity if the page wants to display it (employee chat).
+if (roleLabel) {
+	fetch("/api/me")
+		.then((r) => (r.ok ? r.json() : null))
+		.then((data) => {
+			if (data) {
+				roleLabel.textContent = data.email
+					? `${data.email} (${data.role})`
+					: data.role;
+			}
+		})
+		.catch(() => {
+			/* leave placeholder if /api/me fails */
+		});
 }
 
 // Chat state
@@ -85,15 +93,15 @@ async function sendMessage() {
 		// Scroll to bottom
 		chatMessages.scrollTop = chatMessages.scrollHeight;
 
-		// Send request to API
-		const response = await fetch("/api/chat", {
+		// Send request to API (endpoint can be overridden by the page)
+		const endpoint = window.CHAT_ENDPOINT || "/api/chat";
+		const response = await fetch(endpoint, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
 				messages: chatHistory,
-				role,
 			}),
 		});
 

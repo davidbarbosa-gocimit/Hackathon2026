@@ -370,8 +370,8 @@
 					</div>
 				</div>
 				<div class="role-info">
-					<span class="role-pill" id="role-label">guest</span>
-					<a href="/">switch role</a>
+					<span class="role-pill" id="role-label">employee</span>
+					<a href="/cdn-cgi/access/logout">Sign out</a>
 				</div>
 			</header>
 
@@ -417,6 +417,9 @@
 			<footer>Powered by Cloudflare Workers AI</footer>
 		</div>
 
+		<script>
+			window.CHAT_ENDPOINT = "/api/chat-internal";
+		</script>
 		<script src="chat.js"></script>
 	</body>
 </html>

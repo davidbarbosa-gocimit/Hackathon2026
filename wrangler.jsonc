@@ -27,7 +27,11 @@
 	],
 	"vars": {
 		// Cloudflare AI Gateway slug. Set to "" to call Workers AI directly.
-		"AI_GATEWAY_ID": "adventure-premium"
+		"AI_GATEWAY_ID": "adventure-premium",
+		// Cloudflare Access team domain.
+		"ACCESS_TEAM_DOMAIN": "hackathontravel.cloudflareaccess.com",
+		// AUD tag of the Access application that protects /employee and /api/chat-internal.
+		"ACCESS_AUD": "fce3af5e2359ee5fb3c13d25f65727690c103e45288e960711239e5fac8e6b95"
 	},
 	"upload_source_maps": true
 }
