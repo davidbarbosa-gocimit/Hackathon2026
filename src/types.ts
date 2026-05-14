@@ -7,6 +7,8 @@ export interface Env {
 	ASSETS: { fetch: (request: Request) => Promise<Response> };
 	DB: D1Database;
 	AI_GATEWAY_ID?: string;
+	ACCESS_TEAM_DOMAIN?: string;
+	ACCESS_AUD?: string;
 }
 
 export interface ChatMessage {

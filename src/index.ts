@@ -1,6 +1,7 @@
 import { Env, ChatMessage, UserRole } from "./types";
+import { verifyAccessJWT } from "./auth/access-jwt";
 
-const ROLES = ["employee", "client"] as const;
+const ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
 
 const MODEL_BY_ROLE: Record<UserRole, string> = {
 	employee: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
@@ -14,6 +15,11 @@ const TABLES_BY_ROLE: Record<UserRole, readonly string[]> = {
 	employee: ["packages", "package_commercials"],
 	client: ["packages"],
 };
+
+interface ResolvedIdentity {
+	email: string | null;
+	role: UserRole;
+}
 
 async function loadTablesForRole(
 	db: D1Database,
@@ -30,8 +36,39 @@ async function loadTablesForRole(
 	return Object.fromEntries(entries);
 }
 
-function isUserRole(value: unknown): value is UserRole {
-	return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+async function lookupRole(
+	db: D1Database,
+	email: string,
+): Promise<UserRole | null> {
+	const row = await db
+		.prepare("SELECT role FROM users WHERE email = ?1")
+		.bind(email)
+		.first<{ role: string }>();
+	if (row?.role === "employee" || row?.role === "internal") return "employee";
+	if (row?.role === "client" || row?.role === "customer") return "client";
+	return null;
+}
+
+/**
+ * Resolves the caller identity. With Access configured, the role comes from
+ * the verified JWT email looked up against `users`. Without Access, falls
+ * back to the safer `client` role — never trusts a role from the request body.
+ */
+async function resolveIdentity(
+	request: Request,
+	env: Env,
+): Promise<ResolvedIdentity> {
+	const teamDomain = env.ACCESS_TEAM_DOMAIN;
+	const aud = env.ACCESS_AUD;
+	const token = request.headers.get(ACCESS_JWT_HEADER);
+
+	if (!teamDomain || !aud || !token) {
+		return { email: null, role: "client" };
+	}
+
+	const identity = await verifyAccessJWT(token, teamDomain, aud);
+	const role = (await lookupRole(env.DB, identity.email)) ?? "client";
+	return { email: identity.email, role };
 }
 
 function buildSystemPrompt(
@@ -71,6 +108,10 @@ export default {
 			return new Response("Method not allowed", { status: 405 });
 		}
 
+		if (url.pathname === "/api/me" && request.method === "GET") {
+			return handleWhoAmI(request, env);
+		}
+
 		if (url.pathname === "/api/health/db" && request.method === "GET") {
 			return handleDbHealth(env);
 		}
@@ -78,6 +119,25 @@ export default {
 		return new Response("Not found", { status: 404 });
 	},
 } satisfies ExportedHandler<Env>;
+
+/**
+ * Returns the caller's resolved role and email for the frontend to display.
+ */
+async function handleWhoAmI(request: Request, env: Env): Promise<Response> {
+	try {
+		const identity = await resolveIdentity(request, env);
+		return Response.json({
+			email: identity.email,
+			role: identity.role,
+			access_enabled: Boolean(env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD),
+		});
+	} catch (error) {
+		return Response.json(
+			{ error: error instanceof Error ? error.message : String(error) },
+			{ status: 401 },
+		);
+	}
+}
 
 /**
  * Health check for the D1 binding. Returns row counts per table to confirm
@@ -111,22 +171,31 @@ async function handleChatRequest(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
+	let identity: ResolvedIdentity;
 	try {
-		const body = (await request.json()) as {
-			messages?: ChatMessage[];
-			role?: unknown;
-		};
+		identity = await resolveIdentity(request, env);
+	} catch (error) {
+		return Response.json(
+			{ error: error instanceof Error ? error.message : "Unauthorized" },
+			{ status: 401 },
+		);
+	}
+
+	try {
+		const body = (await request.json()) as { messages?: ChatMessage[] };
 		const incomingMessages = body.messages ?? [];
-		const userRole: UserRole = isUserRole(body.role) ? body.role : "client";
-		const tables = await loadTablesForRole(env.DB, TABLES_BY_ROLE[userRole]);
+		const tables = await loadTablesForRole(
+			env.DB,
+			TABLES_BY_ROLE[identity.role],
+		);
 
 		// Drop any client-supplied system messages and inject our role-scoped one.
 		const messages: ChatMessage[] = [
-			{ role: "system", content: buildSystemPrompt(userRole, tables) },
+			{ role: "system", content: buildSystemPrompt(identity.role, tables) },
 			...incomingMessages.filter((m) => m.role !== "system"),
 		];
 
-		const modelId = MODEL_BY_ROLE[userRole] as Parameters<Ai["run"]>[0];
+		const modelId = MODEL_BY_ROLE[identity.role] as Parameters<Ai["run"]>[0];
 
 		const stream = await env.AI.run(
 			modelId,

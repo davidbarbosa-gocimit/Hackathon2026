@@ -28,7 +28,13 @@
 	"vars": {
 		// Set to your Cloudflare AI Gateway ID to route AI requests through it.
 		// Leave empty to call Workers AI directly.
-		"AI_GATEWAY_ID": ""
+		"AI_GATEWAY_ID": "",
+		// Cloudflare Access team domain (e.g. "myteam.cloudflareaccess.com").
+		// When empty, Access verification is skipped and rol defaults to "client".
+		"ACCESS_TEAM_DOMAIN": "",
+		// AUD tag of the Access application that protects this Worker.
+		// Found in the dashboard at Zero Trust → Access → Applications → app overview.
+		"ACCESS_AUD": ""
 	},
 	"upload_source_maps": true
 }
