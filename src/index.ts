@@ -57,9 +57,41 @@ export default {
 			return new Response("Method not allowed", { status: 405 });
 		}
 
+		if (url.pathname === "/api/health/db" && request.method === "GET") {
+			return handleDbHealth(env);
+		}
+
 		return new Response("Not found", { status: 404 });
 	},
 } satisfies ExportedHandler<Env>;
+
+/**
+ * Health check for the D1 binding. Returns row counts per table to confirm
+ * the Worker can reach the catalog DB.
+ */
+async function handleDbHealth(env: Env): Promise<Response> {
+	try {
+		const [packages, commercials, users] = await Promise.all([
+			env.DB.prepare("SELECT COUNT(*) AS count FROM packages").first<{ count: number }>(),
+			env.DB.prepare("SELECT COUNT(*) AS count FROM package_commercials").first<{ count: number }>(),
+			env.DB.prepare("SELECT COUNT(*) AS count FROM users").first<{ count: number }>(),
+		]);
+
+		return Response.json({
+			ok: true,
+			counts: {
+				packages: packages?.count ?? 0,
+				package_commercials: commercials?.count ?? 0,
+				users: users?.count ?? 0,
+			},
+		});
+	} catch (error) {
+		return Response.json(
+			{ ok: false, error: error instanceof Error ? error.message : String(error) },
+			{ status: 500 },
+		);
+	}
+}
 
 async function handleChatRequest(
 	request: Request,
