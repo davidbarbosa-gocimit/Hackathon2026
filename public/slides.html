@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Adventure Premium · Hackathon 2026</title>
+		<style>
+			:root {
+				--primary: #0f766e;
+				--primary-hover: #115e59;
+				--primary-soft: #ccfbf1;
+				--accent: #f59e0b;
+				--accent-soft: #fef3c7;
+				--bg-from: #fef9f3;
+				--bg-to: #f0fdfa;
+				--surface: #ffffff;
+				--border: #e7e5e4;
+				--text: #1c1917;
+				--text-muted: #78716c;
+				--code-bg: #0f172a;
+				--code-text: #e2e8f0;
+				--shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+				--shadow-md: 0 12px 32px rgba(15, 118, 110, 0.12);
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+
+			html,
+			body {
+				height: 100%;
+				overflow: hidden;
+			}
+
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Oxygen,
+					Ubuntu, Cantarell, sans-serif;
+				font-size: 18px;
+				line-height: 1.55;
+				color: var(--text);
+				background:
+					radial-gradient(
+						circle at top right,
+						rgba(245, 158, 11, 0.14),
+						transparent 55%
+					),
+					radial-gradient(
+						circle at bottom left,
+						rgba(15, 118, 110, 0.12),
+						transparent 55%
+					),
+					linear-gradient(180deg, var(--bg-from) 0%, var(--bg-to) 100%);
+				background-attachment: fixed;
+			}
+
+			.deck {
+				position: relative;
+				width: 100vw;
+				height: 100vh;
+				overflow: hidden;
+			}
+
+			.slides {
+				display: flex;
+				width: 100%;
+				height: 100%;
+				transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+
+			.slide {
+				flex: 0 0 100%;
+				width: 100vw;
+				height: 100vh;
+				padding: 4vh 6vw;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				gap: 1.5rem;
+			}
+
+			.eyebrow {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5rem;
+				background: var(--primary-soft);
+				color: var(--primary);
+				font-size: 0.78rem;
+				font-weight: 700;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				padding: 0.35rem 0.75rem;
+				border-radius: 999px;
+				align-self: flex-start;
+			}
+
+			.eyebrow.amber {
+				background: var(--accent-soft);
+				color: #b45309;
+			}
+
+			h1.slide-title {
+				font-size: clamp(2.2rem, 5vw, 3.8rem);
+				font-weight: 800;
+				letter-spacing: -0.02em;
+				line-height: 1.05;
+				color: var(--text);
+				max-width: 22ch;
+			}
+
+			h2.slide-title {
+				font-size: clamp(1.8rem, 4vw, 2.8rem);
+				font-weight: 800;
+				letter-spacing: -0.02em;
+				line-height: 1.1;
+				max-width: 26ch;
+			}
+
+			.lead {
+				font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+				color: var(--text-muted);
+				max-width: 60ch;
+			}
+
+			.bullets {
+				display: grid;
+				gap: 0.9rem;
+				max-width: 60ch;
+				margin-top: 0.5rem;
+			}
+
+			.bullets li {
+				list-style: none;
+				display: flex;
+				gap: 0.85rem;
+				align-items: flex-start;
+				font-size: clamp(0.98rem, 1.2vw, 1.1rem);
+			}
+
+			.bullets li::before {
+				content: "";
+				flex-shrink: 0;
+				width: 8px;
+				height: 8px;
+				margin-top: 0.55rem;
+				background: var(--primary);
+				border-radius: 2px;
+				transform: rotate(45deg);
+			}
+
+			.bullets b {
+				color: var(--text);
+				font-weight: 700;
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1.25rem;
+				max-width: 1100px;
+			}
+
+			.grid-3 {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 1rem;
+				max-width: 1100px;
+			}
+
+			.card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 1.1rem 1.25rem;
+				box-shadow: var(--shadow-sm);
+			}
+
+			.card h3 {
+				font-size: 1rem;
+				font-weight: 700;
+				margin-bottom: 0.35rem;
+				color: var(--primary);
+			}
+
+			.card p {
+				font-size: 0.95rem;
+				color: var(--text-muted);
+				line-height: 1.5;
+			}
+
+			.code-block {
+				background: var(--code-bg);
+				color: var(--code-text);
+				font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
+				font-size: 0.88rem;
+				border-radius: 12px;
+				padding: 1rem 1.2rem;
+				line-height: 1.55;
+				overflow: auto;
+				box-shadow: var(--shadow-md);
+				max-width: 880px;
+				white-space: pre;
+			}
+
+			.code-block .k {
+				color: #93c5fd;
+			}
+
+			.code-block .s {
+				color: #fcd34d;
+			}
+
+			.code-block .c {
+				color: #64748b;
+				font-style: italic;
+			}
+
+			.code-block .v {
+				color: #86efac;
+			}
+
+			/* Title slide */
+			.slide.title {
+				justify-content: center;
+				align-items: center;
+				text-align: center;
+				gap: 1.25rem;
+			}
+
+			.brand-logo-big {
+				width: 96px;
+				height: 96px;
+				border-radius: 22px;
+				background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+				display: grid;
+				place-items: center;
+				color: white;
+				box-shadow: 0 18px 40px rgba(15, 118, 110, 0.25);
+				margin-bottom: 0.5rem;
+			}
+
+			.brand-logo-big svg {
+				width: 52px;
+				height: 52px;
+			}
+
+			.title h1 {
+				font-size: clamp(2.8rem, 6vw, 5rem);
+				font-weight: 900;
+				letter-spacing: -0.03em;
+				line-height: 1;
+				background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+				-webkit-background-clip: text;
+				background-clip: text;
+				-webkit-text-fill-color: transparent;
+			}
+
+			.title .subtitle {
+				font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+				color: var(--text-muted);
+				font-style: italic;
+			}
+
+			.title .meta {
+				margin-top: 1.5rem;
+				display: flex;
+				gap: 0.6rem;
+				font-size: 0.85rem;
+				color: var(--text-muted);
+			}
+
+			.title .meta span {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				padding: 0.4rem 0.85rem;
+				border-radius: 999px;
+				box-shadow: var(--shadow-sm);
+			}
+
+			/* Architecture slide */
+			.arch {
+				display: flex;
+				flex-direction: column;
+				gap: 0.6rem;
+				max-width: 940px;
+				margin-top: 0.5rem;
+			}
+
+			.arch-row {
+				display: flex;
+				gap: 0.6rem;
+				align-items: stretch;
+			}
+
+			.arch-box {
+				flex: 1;
+				background: var(--surface);
+				border: 1.5px solid var(--border);
+				border-radius: 12px;
+				padding: 0.7rem 0.85rem;
+				font-size: 0.88rem;
+				display: flex;
+				flex-direction: column;
+				gap: 0.15rem;
+				box-shadow: var(--shadow-sm);
+			}
+
+			.arch-box.primary {
+				border-color: var(--primary);
+				background: var(--primary-soft);
+			}
+
+			.arch-box.amber {
+				border-color: var(--accent);
+				background: var(--accent-soft);
+			}
+
+			.arch-box .label {
+				font-size: 0.72rem;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				color: var(--text-muted);
+				font-weight: 700;
+			}
+
+			.arch-box .name {
+				font-weight: 700;
+				color: var(--text);
+			}
+
+			.arch-box .detail {
+				font-size: 0.8rem;
+				color: var(--text-muted);
+			}
+
+			.arch-arrow {
+				align-self: center;
+				color: var(--text-muted);
+				font-size: 1.1rem;
+				font-weight: 700;
+				padding: 0 0.2rem;
+			}
+
+			/* Service grid */
+			.service-card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 1.2rem;
+				display: flex;
+				flex-direction: column;
+				gap: 0.4rem;
+				box-shadow: var(--shadow-sm);
+			}
+
+			.service-card .pill {
+				font-size: 0.7rem;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				font-weight: 700;
+				color: var(--primary);
+				background: var(--primary-soft);
+				padding: 0.2rem 0.55rem;
+				border-radius: 999px;
+				align-self: flex-start;
+			}
+
+			.service-card h3 {
+				font-size: 1.1rem;
+				font-weight: 800;
+			}
+
+			.service-card p {
+				font-size: 0.9rem;
+				color: var(--text-muted);
+			}
+
+			/* Final slide */
+			.slide.final {
+				justify-content: center;
+				align-items: center;
+				text-align: center;
+				gap: 1rem;
+			}
+
+			.url-pill {
+				display: inline-block;
+				background: var(--surface);
+				border: 1px solid var(--primary);
+				color: var(--primary);
+				font-family: "SF Mono", Monaco, Menlo, Consolas, monospace;
+				font-size: clamp(0.85rem, 1.1vw, 1rem);
+				padding: 0.6rem 1.1rem;
+				border-radius: 999px;
+				box-shadow: var(--shadow-sm);
+			}
+
+			.qr-block {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 1rem;
+				box-shadow: var(--shadow-md);
+				display: inline-block;
+				margin-top: 1rem;
+			}
+
+			.qr-block img {
+				display: block;
+				width: 180px;
+				height: 180px;
+			}
+
+			.qr-block .label {
+				margin-top: 0.55rem;
+				font-size: 0.75rem;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				color: var(--text-muted);
+				font-weight: 700;
+				text-align: center;
+			}
+
+			/* Navigation */
+			.nav {
+				position: fixed;
+				bottom: 1.25rem;
+				left: 50%;
+				transform: translateX(-50%);
+				display: flex;
+				align-items: center;
+				gap: 0.75rem;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				padding: 0.45rem 0.85rem;
+				box-shadow: var(--shadow-md);
+				z-index: 100;
+			}
+
+			.nav button {
+				width: 32px;
+				height: 32px;
+				display: grid;
+				place-items: center;
+				background: var(--primary);
+				color: white;
+				border: none;
+				border-radius: 50%;
+				cursor: pointer;
+				transition: background-color 0.2s, transform 0.1s;
+			}
+
+			.nav button:hover {
+				background: var(--primary-hover);
+				transform: translateY(-1px);
+			}
+
+			.nav button:disabled {
+				background: #cbd5e1;
+				cursor: not-allowed;
+				transform: none;
+			}
+
+			.nav .counter {
+				font-size: 0.82rem;
+				color: var(--text-muted);
+				font-variant-numeric: tabular-nums;
+				min-width: 3rem;
+				text-align: center;
+				font-weight: 600;
+			}
+
+			.hint {
+				position: fixed;
+				bottom: 1.25rem;
+				right: 1.25rem;
+				font-size: 0.72rem;
+				color: var(--text-muted);
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 8px;
+				padding: 0.35rem 0.6rem;
+				box-shadow: var(--shadow-sm);
+				z-index: 100;
+			}
+
+			.hint kbd {
+				font-family: "SF Mono", Monaco, Menlo, monospace;
+				background: var(--bg-from);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				padding: 0.05rem 0.3rem;
+				font-size: 0.72rem;
+				margin: 0 0.1rem;
+			}
+
+			@media (max-width: 720px) {
+				.slide {
+					padding: 3vh 5vw;
+				}
+				.grid-2,
+				.grid-3 {
+					grid-template-columns: 1fr;
+				}
+				.arch-row {
+					flex-direction: column;
+				}
+				.arch-arrow {
+					transform: rotate(90deg);
+				}
+				.hint {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="deck">
+			<div class="slides" id="slides">
+				<!-- 1. Title -->
+				<section class="slide title">
+					<div class="brand-logo-big" aria-hidden="true">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<circle cx="17" cy="6" r="1.7" fill="currentColor" stroke="none" />
+							<path d="M2 20 L8 11 L12 16 L16 9 L22 20 Z" />
+							<line x1="2" y1="20" x2="22" y2="20" />
+						</svg>
+					</div>
+					<h1>Adventure Premium</h1>
+					<p class="subtitle">An AI travel concierge built on Cloudflare</p>
+					<div class="meta">
+						<span>Hackathon 2026</span>
+						<span>Workers · Workers AI · AI Gateway · D1 · Access</span>
+					</div>
+				</section>
+
+				<!-- 2. The problem -->
+				<section class="slide">
+					<span class="eyebrow">The problem</span>
+					<h2 class="slide-title">
+						One travel catalog, two very different audiences
+					</h2>
+					<p class="lead">
+						A travel agency sells the same premium packages to both clients and
+						its own salespeople — but each needs to see different information,
+						with different reliability and access guarantees.
+					</p>
+					<ul class="bullets">
+						<li>
+							<span>
+								<b>Clients</b> want destinations, prices, included services,
+								and a friendly recommendation.
+							</span>
+						</li>
+						<li>
+							<span>
+								<b>Sales agents</b> need internal margins, sales arguments,
+								and commercial priority to close the deal.
+							</span>
+						</li>
+						<li>
+							<span>
+								The same chat UI, but the assistant must <b>never leak
+								internal data</b> to a client — even if asked.
+							</span>
+						</li>
+					</ul>
+				</section>
+
+				<!-- 3. The solution -->
+				<section class="slide">
+					<span class="eyebrow amber">The solution</span>
+					<h2 class="slide-title">
+						Role-aware AI concierge, fully on Cloudflare
+					</h2>
+					<p class="lead">
+						A single Worker serves two chat surfaces. The role is decided
+						server-side and propagates through model selection, data access,
+						and prompt engineering — so leaks are impossible by design.
+					</p>
+					<div class="grid-2">
+						<div class="card">
+							<h3>Public client chat</h3>
+							<p>
+								Open at <b>/</b>. Reads only the <code>packages</code> table.
+								Smaller, faster model. Friendly travel-advisor tone.
+							</p>
+						</div>
+						<div class="card">
+							<h3>Employee chat</h3>
+							<p>
+								At <b>/employee</b>. Cloudflare Access-protected. Reads both
+								tables. Larger model. Surfaces margin, priority, sales
+								arguments.
+							</p>
+						</div>
+					</div>
+				</section>
+
+				<!-- 4. Architecture -->
+				<section class="slide">
+					<span class="eyebrow">Architecture</span>
+					<h2 class="slide-title">Everything runs at the edge</h2>
+					<div class="arch">
+						<div class="arch-row">
+							<div class="arch-box">
+								<span class="label">Frontend</span>
+								<span class="name">Static HTML + JS</span>
+								<span class="detail">/ and /employee</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box primary">
+								<span class="label">Compute</span>
+								<span class="name">Cloudflare Workers</span>
+								<span class="detail">TypeScript, edge-deployed</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box amber">
+								<span class="label">Observability</span>
+								<span class="name">AI Gateway</span>
+								<span class="detail">caching · metadata · logs</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box primary">
+								<span class="label">Inference</span>
+								<span class="name">Workers AI</span>
+								<span class="detail">Llama 3.1 8B / 3.3 70B</span>
+							</div>
+						</div>
+						<div class="arch-row">
+							<div class="arch-box">
+								<span class="label">Auth gate</span>
+								<span class="name">Cloudflare Access</span>
+								<span class="detail">JWT for /employee</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box primary">
+								<span class="label">Identity</span>
+								<span class="name">jose verifier</span>
+								<span class="detail">team domain + aud</span>
+							</div>
+							<span class="arch-arrow">→</span>
+							<div class="arch-box">
+								<span class="label">Data</span>
+								<span class="name">D1 (SQLite)</span>
+								<span class="detail">packages, package_commercials, users</span>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<!-- 5. Workers -->
+				<section class="slide">
+					<span class="eyebrow">Compute</span>
+					<h2 class="slide-title">
+						Cloudflare Workers — one file, six endpoints
+					</h2>
+					<p class="lead">
+						No servers, no containers, no cold-start juggling. The entire
+						backend is a single TypeScript Worker deployed to the edge.
+					</p>
+					<div class="grid-3">
+						<div class="service-card">
+							<span class="pill">/api/chat</span>
+							<h3>Public chat</h3>
+							<p>Hardcoded to the <code>client</code> role. Open to anyone.</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">/api/chat-internal</span>
+							<h3>Employee chat</h3>
+							<p>
+								Verifies the Cloudflare Access JWT before answering. Role:
+								<code>employee</code>.
+							</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">/api/me</span>
+							<h3>Identity</h3>
+							<p>Returns the signed-in email + resolved role.</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">/api/health/db</span>
+							<h3>D1 health</h3>
+							<p>Row counts per table. Sanity check for the data layer.</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">/</span>
+							<h3>Static assets</h3>
+							<p>
+								Served via the <code>ASSETS</code> binding. Same Worker, no
+								separate hosting.
+							</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">/employee</span>
+							<h3>Employee UI</h3>
+							<p>
+								Protected by Access at the edge. Worker is never even hit
+								unauthenticated.
+							</p>
+						</div>
+					</div>
+				</section>
+
+				<!-- 6. Workers AI -->
+				<section class="slide">
+					<span class="eyebrow">Inference</span>
+					<h2 class="slide-title">
+						Workers AI — different model for different stakes
+					</h2>
+					<p class="lead">
+						Each role gets the model whose strengths fit the task. No
+						third-party API keys, no extra infra — just the
+						<code>env.AI</code> binding.
+					</p>
+					<div class="grid-2">
+						<div class="card">
+							<h3>@cf/meta/llama-3.1-8b-instruct-fp8</h3>
+							<p>
+								<b>Client.</b> Fast, lightweight. Handles travel
+								recommendations and customer questions in real time.
+							</p>
+						</div>
+						<div class="card">
+							<h3>@cf/meta/llama-3.3-70b-instruct-fp8-fast</h3>
+							<p>
+								<b>Employee.</b> Stronger reasoning, better at following
+								strict format rules — needed for accurate commercial figures.
+							</p>
+						</div>
+					</div>
+					<pre class="code-block"><span class="k">await</span> env.AI.run(modelId, { messages, stream: <span class="v">true</span> }, {
+  <span class="c">// goes through AI Gateway if AI_GATEWAY_ID is set</span>
+  gateway: { id: env.AI_GATEWAY_ID, metadata: { role } },
+});</pre>
+				</section>
+
+				<!-- 7. AI Gateway -->
+				<section class="slide">
+					<span class="eyebrow amber">Observability</span>
+					<h2 class="slide-title">AI Gateway — visibility for free</h2>
+					<p class="lead">
+						Every model call is proxied through our gateway slug
+						<code>adventure-premium</code>. We didn't write a single line of
+						logging code.
+					</p>
+					<div class="grid-3">
+						<div class="service-card">
+							<span class="pill">Logs</span>
+							<h3>Real-time tracing</h3>
+							<p>
+								Every prompt, response, model, and latency in the dashboard.
+							</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">Cache</span>
+							<h3>Repeated questions</h3>
+							<p>
+								<code>cacheTtl: 3600</code> — repeated client FAQs return in
+								milliseconds with zero tokens billed.
+							</p>
+						</div>
+						<div class="service-card">
+							<span class="pill">Metadata</span>
+							<h3>Role tagging</h3>
+							<p>
+								<code>metadata: { role }</code> lets us split employee vs
+								client traffic in the dashboard.
+							</p>
+						</div>
+					</div>
+					<p class="lead">
+						<b>Future levers</b> available without code changes: rate limits
+						per role, provider fallbacks, content guardrails.
+					</p>
+				</section>
+
+				<!-- 8. D1 -->
+				<section class="slide">
+					<span class="eyebrow">Data</span>
+					<h2 class="slide-title">D1 — SQLite at the edge</h2>
+					<p class="lead">
+						Three tables, two of which the assistant can read, but never both
+						for the same user. The access filter is the strongest guarantee in
+						the system.
+					</p>
+					<pre class="code-block"><span class="c">// src/index.ts — fixed map, never derived from user input</span>
+<span class="k">const</span> TABLES_BY_ROLE = {
+  employee: [<span class="s">"packages"</span>, <span class="s">"package_commercials"</span>],
+  client:   [<span class="s">"packages"</span>],
+};
+
+<span class="c">// inactive packages filtered at the SQL layer</span>
+<span class="k">const</span> TABLE_QUERIES = {
+  packages:            <span class="s">"SELECT * FROM packages WHERE active = 1 LIMIT 100"</span>,
+  package_commercials: <span class="s">"SELECT * FROM package_commercials LIMIT 100"</span>,
+};</pre>
+					<p class="lead">
+						A client request <b>literally never loads</b> commercial rows. Even
+						if the model wanted to leak, it has nothing in context to leak.
+					</p>
+				</section>
+
+				<!-- 9. Access -->
+				<section class="slide">
+					<span class="eyebrow amber">Zero Trust</span>
+					<h2 class="slide-title">
+						Cloudflare Access — auth only where it matters
+					</h2>
+					<p class="lead">
+						The customer-facing chat is wide open. <b>Cloudflare Access
+						(Zero Trust)</b> sits only in front of the employee chat — asking
+						for an email-based login before any request reaches our Worker.
+					</p>
+					<div class="grid-2">
+						<div class="card">
+							<h3>Client at /</h3>
+							<p>
+								<b>No login.</b> Open the URL, start chatting. Sees only the
+								public <code>packages</code> table.
+							</p>
+						</div>
+						<div class="card">
+							<h3>Employee at /employee</h3>
+							<p>
+								<b>Email login via Zero Trust.</b> Cloudflare brokers the
+								identity flow at the edge — the Worker is never even reached
+								by an unauthenticated request.
+							</p>
+						</div>
+					</div>
+					<ul class="bullets">
+						<li>
+							<span>
+								<b>No password storage on our side.</b> Cloudflare runs the
+								whole login UI and SSO handshake.
+							</span>
+						</li>
+						<li>
+							<span>
+								<b>JWT verified at the edge</b> via the <code>jose</code>
+								library against our team domain + AUD tag — defense in depth.
+							</span>
+						</li>
+						<li>
+							<span>
+								Authenticated email lands at <code>/api/me</code> and shows
+								in the employee chat header.
+							</span>
+						</li>
+					</ul>
+				</section>
+
+				<!-- 10. Prompt engineering -->
+				<section class="slide">
+					<span class="eyebrow">Soft layer</span>
+					<h2 class="slide-title">Prompt engineering — the behavioural guardrail</h2>
+					<p class="lead">
+						Data filtering blocks leaks of what's not in context. Prompt rules
+						handle the rest: tone, refusal patterns, answer shape, number
+						formatting.
+					</p>
+					<div class="grid-2">
+						<div class="card">
+							<h3>Common rules (both roles)</h3>
+							<p>
+								Never invent rows · refuse role-change attempts · hide DB
+								IDs · always quote prices as "from €X" with thousands
+								separators.
+							</p>
+						</div>
+						<div class="card">
+							<h3>Role-specific rules</h3>
+							<p>
+								Employee answer shape: name → price → duration → margin.
+								Client answer shape: name → destination → price → highlights
+								→ why it fits.
+							</p>
+						</div>
+					</div>
+					<p class="lead">
+						Plus a <b>field guide</b> injected into every prompt so the model
+						knows what each column actually means.
+					</p>
+				</section>
+
+				<!-- 11. Live demo -->
+				<section class="slide final">
+					<span class="eyebrow">Try it now</span>
+					<h2 class="slide-title">Live demo</h2>
+					<div class="url-pill">hackathon2026.cloudflarehackathon.workers.dev</div>
+					<div class="qr-block">
+						<img
+							src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=4&data=https%3A%2F%2Fhackathon2026.cloudflarehackathon.workers.dev%2F"
+							alt="QR code to the public chat"
+							width="180"
+							height="180"
+						/>
+						<div class="label">Scan to open</div>
+					</div>
+					<p class="lead" style="text-align: center;">
+						Try as a client first, then as an employee — same UI, the
+						assistant just <em>knows</em> who it's talking to.
+					</p>
+				</section>
+
+				<!-- 12. Thanks -->
+				<section class="slide title final">
+					<div class="brand-logo-big" aria-hidden="true">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<circle cx="17" cy="6" r="1.7" fill="currentColor" stroke="none" />
+							<path d="M2 20 L8 11 L12 16 L16 9 L22 20 Z" />
+							<line x1="2" y1="20" x2="22" y2="20" />
+						</svg>
+					</div>
+					<h1>Thank you</h1>
+					<p class="subtitle">Questions?</p>
+					<div class="meta">
+						<span>github.com/davidbarbosa-gocimit/Hackathon2026</span>
+					</div>
+				</section>
+			</div>
+
+			<div class="nav">
+				<button id="prev" aria-label="Previous slide">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="15 18 9 12 15 6"></polyline>
+					</svg>
+				</button>
+				<span class="counter" id="counter">1 / 12</span>
+				<button id="next" aria-label="Next slide">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="9 18 15 12 9 6"></polyline>
+					</svg>
+				</button>
+			</div>
+
+			<div class="hint">
+				<kbd>←</kbd><kbd>→</kbd> or <kbd>space</kbd> to navigate
+			</div>
+		</div>
+
+		<script>
+			const slidesEl = document.getElementById("slides");
+			const counterEl = document.getElementById("counter");
+			const prevBtn = document.getElementById("prev");
+			const nextBtn = document.getElementById("next");
+			const total = slidesEl.children.length;
+			let index = 0;
+
+			function render() {
+				slidesEl.style.transform = `translateX(-${index * 100}%)`;
+				counterEl.textContent = `${index + 1} / ${total}`;
+				prevBtn.disabled = index === 0;
+				nextBtn.disabled = index === total - 1;
+				history.replaceState(null, "", `#${index + 1}`);
+			}
+
+			function go(delta) {
+				const next = Math.max(0, Math.min(total - 1, index + delta));
+				if (next !== index) {
+					index = next;
+					render();
+				}
+			}
+
+			prevBtn.addEventListener("click", () => go(-1));
+			nextBtn.addEventListener("click", () => go(1));
+
+			document.addEventListener("keydown", (e) => {
+				if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+					e.preventDefault();
+					go(1);
+				} else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+					e.preventDefault();
+					go(-1);
+				} else if (e.key === "Home") {
+					index = 0;
+					render();
+				} else if (e.key === "End") {
+					index = total - 1;
+					render();
+				}
+			});
+
+			// Restore from hash if present
+			const fromHash = parseInt(window.location.hash.slice(1), 10);
+			if (!isNaN(fromHash) && fromHash >= 1 && fromHash <= total) {
+				index = fromHash - 1;
+			}
+			render();
+		</script>
+	</body>
+</html>
