@@ -11,7 +11,7 @@ const MODEL_BY_ROLE: Record<UserRole, string> = {
 // looked up from this fixed record (never from user input), it is safe to
 // interpolate into the SQL string.
 const TABLE_BY_ROLE: Record<UserRole, string> = {
-	employee: "packages_commercials",
+	employee: "package_commercials",
 	client: "packages",
 };
 
