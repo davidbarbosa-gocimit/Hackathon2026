@@ -150,7 +150,8 @@ Repositorio: `davidbarbosa-gocimit/Hackathon2026`
 ### Colaboradores
 
 - [ ] David Barbosa (@davidbarbosa-gocimit) — owner / arquitectura
-- [ ] _añadir aquí_
+- [ ] @felix-fr
+- [ ] @cloudflarehackathon
 
 ### Reparto de áreas (borrador, a discutir en kickoff)
 
