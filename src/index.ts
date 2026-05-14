@@ -1,5 +1,5 @@
 import { Env, ChatMessage, UserRole } from "./types";
-import { verifyAccessJWT } from "./auth/access-jwt";
+import { verifyAccessJWT, type AccessIdentity } from "./auth/access-jwt";
 
 const ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
 
@@ -16,11 +16,6 @@ const TABLES_BY_ROLE: Record<UserRole, readonly string[]> = {
 	client: ["packages"],
 };
 
-interface ResolvedIdentity {
-	email: string | null;
-	role: UserRole;
-}
-
 async function loadTablesForRole(
 	db: D1Database,
 	tables: readonly string[],
@@ -34,41 +29,6 @@ async function loadTablesForRole(
 		}),
 	);
 	return Object.fromEntries(entries);
-}
-
-async function lookupRole(
-	db: D1Database,
-	email: string,
-): Promise<UserRole | null> {
-	const row = await db
-		.prepare("SELECT role FROM users WHERE email = ?1")
-		.bind(email)
-		.first<{ role: string }>();
-	if (row?.role === "employee" || row?.role === "internal") return "employee";
-	if (row?.role === "client" || row?.role === "customer") return "client";
-	return null;
-}
-
-/**
- * Resolves the caller identity. With Access configured, the role comes from
- * the verified JWT email looked up against `users`. Without Access, falls
- * back to the safer `client` role — never trusts a role from the request body.
- */
-async function resolveIdentity(
-	request: Request,
-	env: Env,
-): Promise<ResolvedIdentity> {
-	const teamDomain = env.ACCESS_TEAM_DOMAIN;
-	const aud = env.ACCESS_AUD;
-	const token = request.headers.get(ACCESS_JWT_HEADER);
-
-	if (!teamDomain || !aud || !token) {
-		return { email: null, role: "client" };
-	}
-
-	const identity = await verifyAccessJWT(token, teamDomain, aud);
-	const role = (await lookupRole(env.DB, identity.email)) ?? "client";
-	return { email: identity.email, role };
 }
 
 function buildSystemPrompt(
@@ -89,6 +49,25 @@ function buildSystemPrompt(
 	return lines.join("\n");
 }
 
+/**
+ * Verifies the Cloudflare Access JWT from the request. Returns the identity
+ * or throws if the JWT is missing or invalid. Used to defend `/api/chat-internal`
+ * against requests that bypass Access (e.g. direct curl to the Worker URL).
+ */
+async function requireAccessIdentity(
+	request: Request,
+	env: Env,
+): Promise<AccessIdentity> {
+	const token = request.headers.get(ACCESS_JWT_HEADER);
+	if (!token) {
+		throw new Error("Missing Cloudflare Access JWT");
+	}
+	if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) {
+		throw new Error("Access not configured on the Worker");
+	}
+	return verifyAccessJWT(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD);
+}
+
 export default {
 	async fetch(
 		request: Request,
@@ -101,11 +80,12 @@ export default {
 			return env.ASSETS.fetch(request);
 		}
 
-		if (url.pathname === "/api/chat") {
-			if (request.method === "POST") {
-				return handleChatRequest(request, env);
-			}
-			return new Response("Method not allowed", { status: 405 });
+		if (url.pathname === "/api/chat" && request.method === "POST") {
+			return handlePublicChat(request, env);
+		}
+
+		if (url.pathname === "/api/chat-internal" && request.method === "POST") {
+			return handleInternalChat(request, env);
 		}
 
 		if (url.pathname === "/api/me" && request.method === "GET") {
@@ -121,19 +101,24 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 /**
- * Returns the caller's resolved role and email for the frontend to display.
+ * Identity endpoint, only meaningful inside the Access-protected pages.
+ * For the public chat it just reports an anonymous client.
  */
 async function handleWhoAmI(request: Request, env: Env): Promise<Response> {
+	const token = request.headers.get(ACCESS_JWT_HEADER);
+	if (!token || !env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) {
+		return Response.json({ email: null, role: "client" });
+	}
 	try {
-		const identity = await resolveIdentity(request, env);
-		return Response.json({
-			email: identity.email,
-			role: identity.role,
-			access_enabled: Boolean(env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD),
-		});
+		const identity = await verifyAccessJWT(
+			token,
+			env.ACCESS_TEAM_DOMAIN,
+			env.ACCESS_AUD,
+		);
+		return Response.json({ email: identity.email, role: "employee" });
 	} catch (error) {
 		return Response.json(
-			{ error: error instanceof Error ? error.message : String(error) },
+			{ error: error instanceof Error ? error.message : "Unauthorized" },
 			{ status: 401 },
 		);
 	}
@@ -167,35 +152,45 @@ async function handleDbHealth(env: Env): Promise<Response> {
 	}
 }
 
-async function handleChatRequest(
+async function handlePublicChat(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
-	let identity: ResolvedIdentity;
+	return runChat(request, env, "client");
+}
+
+async function handleInternalChat(
+	request: Request,
+	env: Env,
+): Promise<Response> {
 	try {
-		identity = await resolveIdentity(request, env);
+		await requireAccessIdentity(request, env);
 	} catch (error) {
 		return Response.json(
 			{ error: error instanceof Error ? error.message : "Unauthorized" },
 			{ status: 401 },
 		);
 	}
+	return runChat(request, env, "employee");
+}
 
+async function runChat(
+	request: Request,
+	env: Env,
+	role: UserRole,
+): Promise<Response> {
 	try {
 		const body = (await request.json()) as { messages?: ChatMessage[] };
 		const incomingMessages = body.messages ?? [];
-		const tables = await loadTablesForRole(
-			env.DB,
-			TABLES_BY_ROLE[identity.role],
-		);
+		const tables = await loadTablesForRole(env.DB, TABLES_BY_ROLE[role]);
 
 		// Drop any client-supplied system messages and inject our role-scoped one.
 		const messages: ChatMessage[] = [
-			{ role: "system", content: buildSystemPrompt(identity.role, tables) },
+			{ role: "system", content: buildSystemPrompt(role, tables) },
 			...incomingMessages.filter((m) => m.role !== "system"),
 		];
 
-		const modelId = MODEL_BY_ROLE[identity.role] as Parameters<Ai["run"]>[0];
+		const modelId = MODEL_BY_ROLE[role] as Parameters<Ai["run"]>[0];
 
 		const stream = await env.AI.run(
 			modelId,

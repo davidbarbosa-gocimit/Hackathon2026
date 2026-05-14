@@ -3,17 +3,17 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>LLM Chat App</title>
+		<title>Adventure Premium · Asistente comercial</title>
 		<style>
 			:root {
-				--primary-color: #2563eb;
-				--primary-hover: #1d4ed8;
-				--light-bg: #f1f5f9;
-				--border-color: #dbeafe;
+				--primary-color: #0f766e;
+				--primary-hover: #115e59;
+				--light-bg: #f0fdfa;
+				--border-color: #ccfbf1;
 				--text-color: #1e293b;
 				--text-light: #64748b;
-				--user-msg-bg: #dbeafe;
-				--assistant-msg-bg: #eef2ff;
+				--user-msg-bg: #ccfbf1;
+				--assistant-msg-bg: #ecfeff;
 			}
 
 			* {
@@ -48,7 +48,7 @@
 			.chat-container {
 				display: flex;
 				flex-direction: column;
-				height: calc(100vh - 200px);
+				height: calc(100vh - 220px);
 				min-height: 400px;
 				border: 1px solid var(--border-color);
 				border-radius: 8px;
@@ -144,15 +144,16 @@
 	</head>
 	<body>
 		<header>
-			<h1>Adventure Premium · Asistente de viajes</h1>
+			<h1>Adventure Premium · Asistente comercial</h1>
+			<p>Sesión: <span id="role-label">…</span></p>
 		</header>
 
 		<div class="chat-container">
 			<div id="chat-messages" class="chat-messages">
 				<div class="message assistant-message">
 					<p>
-						Hello! I'm an LLM chat app powered by Cloudflare Workers AI. How can
-						I help you today?
+						Hola. Vista interna activa: tienes acceso a paquetes y datos
+						comerciales (costes, márgenes, argumentarios). ¿En qué te ayudo?
 					</p>
 				</div>
 			</div>
@@ -164,7 +165,7 @@
 			<div class="message-input">
 				<textarea
 					id="user-input"
-					placeholder="Type your message here..."
+					placeholder="Pregunta sobre paquetes, márgenes, argumentarios…"
 					rows="1"
 					autofocus
 				></textarea>
@@ -173,10 +174,16 @@
 		</div>
 
 		<footer>
-			<p>Adventure Premium · <a href="/employee">Personal? Acceder</a></p>
+			<p>
+				Vista interna ·
+				<a href="/cdn-cgi/access/logout">Cerrar sesión</a>
+			</p>
 		</footer>
 
-		<!-- Chat app script (public endpoint by default) -->
+		<!-- Switch the chat to the protected endpoint before loading chat.js -->
+		<script>
+			window.CHAT_ENDPOINT = "/api/chat-internal";
+		</script>
 		<script src="chat.js"></script>
 	</body>
 </html>
