@@ -18,5 +18,12 @@
 	"ai": {
 		"binding": "AI"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "adventure-premium-db",
+			"database_id": "f47cd545-20a3-4451-bf0e-752d5aa88221"
+		}
+	],
 	"upload_source_maps": true
 }
