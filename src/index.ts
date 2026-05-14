@@ -236,6 +236,7 @@ async function handleChatRequest(
 							id: env.AI_GATEWAY_ID,
 							skipCache: false,
 							cacheTtl: 3600,
+							metadata: { role: userRole },
 						},
 					}
 				: undefined,

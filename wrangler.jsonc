@@ -26,9 +26,8 @@
 		}
 	],
 	"vars": {
-		// Set to your Cloudflare AI Gateway ID to route AI requests through it.
-		// Leave empty to call Workers AI directly.
-		"AI_GATEWAY_ID": ""
+		// Cloudflare AI Gateway slug. Set to "" to call Workers AI directly.
+		"AI_GATEWAY_ID": "adventure-premium"
 	},
 	"upload_source_maps": true
 }
