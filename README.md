@@ -41,11 +41,16 @@ Mínimo pero profesional. Todo Cloudflare más Hono como framework HTTP.
 ### Datos
 - **D1** (SQLite serverless) — catálogo de destinos, atracciones, FAQs.
 
+### Auth (Zero Trust)
+- **Cloudflare Access** (Zero Trust) — SSO en el edge delante de todo el Worker.
+  El usuario se autentica (Google / GitHub / email OTP) antes de llegar a `/chat`.
+  El Worker recibe el JWT `Cf-Access-Jwt-Assertion` con el email verificado y lo
+  usa como identidad estable.
+
 ### Guardrails / anti-abuso
-- **Turnstile** (invisible) — anti-bot en el cliente.
-- **Rate Limiting binding** (nativo de Workers) — límite por IP a nivel Worker,
-  sin estado custom.
-- Budget global → AI Gateway (no necesitamos contador per-user para el MVP).
+- **Rate Limiting binding** (nativo de Workers) — límite por **email del JWT de
+  Access** (no por IP), corta tras N req/min.
+- Budget global → AI Gateway (sin contador per-user en el MVP).
 
 ### Frontend
 - **Workers Static Assets** — sirve la UI desde el mismo Worker, 1 deploy.
@@ -53,17 +58,17 @@ Mínimo pero profesional. Todo Cloudflare más Hono como framework HTTP.
 
 > Decisiones explícitamente descartadas para mantenerlo simple:
 > Cloudflare Agents SDK (overkill para chat de un turno), KV (AI Gateway ya
-> hace el caché) y Durable Objects (Rate Limiting binding + budget global de
-> AI Gateway cubren el MVP).
+> hace el caché), Durable Objects (Rate Limiting binding + AI Gateway cubren
+> el MVP) y Turnstile (Cloudflare Access ya bloquea bots al exigir SSO).
 
 ## Arquitectura de guardrails (capas)
 
 ```
 [Cliente]
    ↓
-[1] Turnstile (anti-bot, gratis)
+[1] Cloudflare Access (Zero Trust, SSO) → JWT con email verificado
    ↓
-[2] Worker (Hono): Rate Limiting binding por IP + validaciones cheap (longitud, regex anti-injection)
+[2] Worker (Hono): Rate Limiting binding por email + validaciones cheap (longitud, regex anti-injection)
    ↓
 [3] Clasificador de scope (Llama 3.1 8B vía Workers AI)
        → si off-topic: respuesta canned, fin.
@@ -79,8 +84,8 @@ Mínimo pero profesional. Todo Cloudflare más Hono como framework HTTP.
 
 | Amenaza                          | Defensa                                              |
 | -------------------------------- | ---------------------------------------------------- |
-| Bot spammeando endpoint          | Turnstile + Rate Limiting binding por IP             |
-| Usuario abusando del endpoint    | Rate Limiting binding (corta tras N req/min por IP)  |
+| Bot / acceso no autorizado       | Cloudflare Access (SSO Zero Trust): sin login, no entras |
+| Usuario abusando del endpoint    | Rate Limiting binding por email del JWT (corta tras N req/min) |
 | Preguntas off-topic largas       | Clasificador barato antes del LLM caro               |
 | Prompt injection                 | Tool calling restringido + system prompt + validador |
 | Misma pregunta repetida          | Caché semántico de AI Gateway                        |
@@ -129,7 +134,7 @@ system prompt, el clasificador de scope y el validador de salida.
 ```
 Hackathon2026/
 ├── README.md
-├── wrangler.toml              # config Cloudflare (bindings: AI, D1, Turnstile, RL, ASSETS)
+├── wrangler.toml              # config Cloudflare (bindings: AI, D1, RL, ASSETS)
 ├── package.json
 ├── tsconfig.json
 ├── src/
@@ -179,9 +184,10 @@ Repositorio: `davidbarbosa-gocimit/Hackathon2026`
 | Área                              | Responsable   | Notas                                                          |
 | --------------------------------- | ------------- | -------------------------------------------------------------- |
 | Worker base (Hono) + Wrangler     | _por definir_ | scaffold inicial, rutas, bindings, config Wrangler             |
+| Auth: Cloudflare Access           | _por definir_ | Config Zero Trust (Google/GitHub/email OTP) + validación JWT en Worker |
 | D1: schema + seed turismo         | _por definir_ | tablas: destinations, attractions, categories, faqs            |
 | Tools del LLM (tool calling)      | _por definir_ | funciones expuestas al LLM sobre D1 (`get_destination`, etc.)  |
-| Guardrails: rate limit            | _por definir_ | Rate Limiting binding + respuesta canned al exceder            |
+| Guardrails: rate limit            | _por definir_ | Rate Limiting binding por email del JWT + respuesta canned     |
 | Guardrails: clasificador de scope | _por definir_ | prompt + Llama 3.1 8B vía Workers AI (dominio turismo)         |
 | Guardrails: anti prompt-injection | _por definir_ | heurísticas + validador de salida                              |
 | AI Gateway (caché + budget + logs)| _por definir_ | config en dashboard Cloudflare + integración                   |
@@ -200,7 +206,8 @@ Repositorio: `davidbarbosa-gocimit/Hackathon2026`
 1. Scaffold Worker + Hono + Wrangler.
 2. D1 con datos mock de destinos y lugares de interés.
 3. Endpoint `POST /chat` con Workers AI y tool calling restringido.
-4. Rate Limiting binding + clasificador de scope (dominio turismo).
-5. Cliente demo (1 página) servido vía Workers Static Assets.
-6. AI Gateway: caché semántico + budget global + logs.
-7. Pulido + pitch.
+4. Cloudflare Access (Zero Trust) protegiendo la app + lectura del JWT en Worker.
+5. Rate Limiting binding por email + clasificador de scope (dominio turismo).
+6. Cliente demo (1 página) servido vía Workers Static Assets.
+7. AI Gateway: caché semántico + budget global + logs.
+8. Pulido + pitch.
