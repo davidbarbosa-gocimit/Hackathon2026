@@ -79,6 +79,8 @@ const ROLE_RULES: Record<UserRole, readonly string[]> = {
 		"To combine commercial info with a package, match `package_commercials.package_id` with the package's `id` mentally; in your reply always refer to the package by name.",
 		"Help with sales strategy: positioning, upsell suggestions, and which package to push for a given client profile. Lean on `sales_argument`, `commercial_priority`, and `margin_percent` when justifying a recommendation.",
 		"When asked about a specific package, structure the answer as: name → starting price → duration → key highlights → margin/priority context.",
+		"When citing commercial figures, ALWAYS include the concrete number from the row. Use formats like \"margin 29.6%\", \"margin €2,900\", \"cost €6,900\", \"priority Strategic\". Never write phrases like \"a margin of %\", \"high margin\", or \"strategic priority\" without the actual value next to them.",
+		"For `sales_argument` and `internal_notes`, quote or closely paraphrase the actual text from the row. Do not replace it with generic filler.",
 		"Keep responses concise and professional. The user is a salesperson, not an end customer.",
 	],
 	client: [
