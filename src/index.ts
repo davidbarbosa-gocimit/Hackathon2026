@@ -1,26 +1,44 @@
-/**
- * LLM Chat Application Template
- *
- * A simple chat application using Cloudflare Workers AI.
- * This template demonstrates how to implement an LLM-powered chat interface with
- * streaming responses using Server-Sent Events (SSE).
- *
- * @license MIT
- */
-import { Env, ChatMessage } from "./types";
+import { Env, ChatMessage, UserRole } from "./types";
 
-// Model ID for Workers AI model
-// https://developers.cloudflare.com/workers-ai/models/
-const MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
+const ROLES = ["employee", "client"] as const;
 
-// Default system prompt
-const SYSTEM_PROMPT =
-	"You are a helpful, friendly assistant. Provide concise and accurate responses.";
+const MODEL_BY_ROLE: Record<UserRole, string> = {
+	employee: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+	client: "@cf/meta/llama-3.1-8b-instruct-fp8",
+};
+
+// Each role is mapped to exactly one allowed table. Because the table name is
+// looked up from this fixed record (never from user input), it is safe to
+// interpolate into the SQL string.
+const TABLE_BY_ROLE: Record<UserRole, string> = {
+	employee: "packages_commercials",
+	client: "packages",
+};
+
+async function loadTableRows(
+	db: D1Database,
+	table: string,
+): Promise<unknown[]> {
+	const { results } = await db
+		.prepare(`SELECT * FROM ${table} LIMIT 100`)
+		.all();
+	return results ?? [];
+}
+
+function isUserRole(value: unknown): value is UserRole {
+	return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+}
+
+function buildSystemPrompt(role: UserRole, table: string, rows: unknown[]): string {
+	return [
+		`You are a helpful assistant talking to a user with the "${role}" role.`,
+		`You have read access to the "${table}" table only. Do not invent rows or reference other tables.`,
+		`Table contents (JSON):`,
+		JSON.stringify(rows),
+	].join("\n");
+}
 
 export default {
-	/**
-	 * Main request handler for the Worker
-	 */
 	async fetch(
 		request: Request,
 		env: Env,
@@ -28,60 +46,59 @@ export default {
 	): Promise<Response> {
 		const url = new URL(request.url);
 
-		// Handle static assets (frontend)
 		if (url.pathname === "/" || !url.pathname.startsWith("/api/")) {
 			return env.ASSETS.fetch(request);
 		}
 
-		// API Routes
 		if (url.pathname === "/api/chat") {
-			// Handle POST requests for chat
 			if (request.method === "POST") {
 				return handleChatRequest(request, env);
 			}
-
-			// Method not allowed for other request types
 			return new Response("Method not allowed", { status: 405 });
 		}
 
-		// Handle 404 for unmatched routes
 		return new Response("Not found", { status: 404 });
 	},
 } satisfies ExportedHandler<Env>;
 
-/**
- * Handles chat API requests
- */
 async function handleChatRequest(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
 	try {
-		// Parse JSON request body
-		const { messages = [] } = (await request.json()) as {
-			messages: ChatMessage[];
+		const body = (await request.json()) as {
+			messages?: ChatMessage[];
+			role?: unknown;
 		};
+		const incomingMessages = body.messages ?? [];
+		const userRole: UserRole = isUserRole(body.role) ? body.role : "client";
+		const tableName = TABLE_BY_ROLE[userRole];
+		const rows = await loadTableRows(env.DB, tableName);
 
-		// Add system prompt if not present
-		if (!messages.some((msg) => msg.role === "system")) {
-			messages.unshift({ role: "system", content: SYSTEM_PROMPT });
-		}
+		// Drop any client-supplied system messages and inject our role-scoped one.
+		const messages: ChatMessage[] = [
+			{ role: "system", content: buildSystemPrompt(userRole, tableName, rows) },
+			...incomingMessages.filter((m) => m.role !== "system"),
+		];
+
+		const modelId = MODEL_BY_ROLE[userRole] as Parameters<Ai["run"]>[0];
 
 		const stream = await env.AI.run(
-			MODEL_ID,
+			modelId,
 			{
 				messages,
 				max_tokens: 1024,
 				stream: true,
 			},
-			{
-				// Uncomment to use AI Gateway
-				// gateway: {
-				//   id: "YOUR_GATEWAY_ID", // Replace with your AI Gateway ID
-				//   skipCache: false,      // Set to true to bypass cache
-				//   cacheTtl: 3600,        // Cache time-to-live in seconds
-				// },
-			},
+			env.AI_GATEWAY_ID
+				? {
+						gateway: {
+							id: env.AI_GATEWAY_ID,
+							skipCache: false,
+							cacheTtl: 3600,
+						},
+					}
+				: undefined,
 		);
 
 		return new Response(stream, {

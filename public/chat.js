@@ -93,6 +93,7 @@ async function sendMessage() {
 			},
 			body: JSON.stringify({
 				messages: chatHistory,
+				role,
 			}),
 		});
 

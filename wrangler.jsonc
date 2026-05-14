@@ -25,5 +25,10 @@
 			"database_id": "f47cd545-20a3-4451-bf0e-752d5aa88221"
 		}
 	],
+	"vars": {
+		// Set to your Cloudflare AI Gateway ID to route AI requests through it.
+		// Leave empty to call Workers AI directly.
+		"AI_GATEWAY_ID": ""
+	},
 	"upload_source_maps": true
 }
